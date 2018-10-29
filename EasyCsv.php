@@ -9,7 +9,7 @@ class EasyCsv
 {
     public static $type;                #json | array  
     public static $fileName;            #file name
-    public static $fileOpratione;              #file opration
+    public static $fileOpratione;       #file opration
     public static $fileOpenHandle;      #file handle
     public static $csvMaxLength;        #csv max row
     public static $errorMsg;            #error msg
@@ -21,11 +21,11 @@ class EasyCsv
         self::$type = $type;
         self::$fileName = $fileName;
         self::$csvMaxLength = 1000;
-        if(!file_exists($filePath)){
+        if(!file_exists($fileName)){
             self::$errorMsg = 'file is not exist!';
             return false;
         }
-        if(!self::chekCSV()){
+        if(!self::checkCSV()){
             self::$errorMsg = 'file is not csv!';
             return false;
         }
@@ -33,7 +33,7 @@ class EasyCsv
         return true;
     }
 
-    public static function importCsv(){
+    public static function importCsv($feilds=[],$value=''){
         while($data=fgetcsv(self::$fileOpenHandle,self::$csvMaxLength,",")){
             $data = @eval('return '.iconv('gbk','utf-8',var_export($data,true)).';');
             $list[] = $data;
@@ -41,6 +41,18 @@ class EasyCsv
         if(count($list)<2){
             self::$errorMsg = 'csv data is null!';
             return false;
+        }
+        if(!empty($feilds)){
+            foreach($feilds as $feild){
+                $unKey = array_search($feild,$list[0]);
+                if(!$unKey){
+                    self::$errorMsg = 'the unset row name is not exist!';
+                    return false;
+                }
+                $list = self::_callUnkey($unKey,$list);
+                if(!$list)
+                    return false;
+            }
         }
         if(self::$type == 'json')
             $list = json_encode($list,JSON_UNESCAPED_UNICODE);
@@ -63,7 +75,7 @@ class EasyCsv
     public static function downloadCsv($downloadName,$title,$data){
         try{
             self::$fileName = $downloadName;
-            if(!self::chekCSV()){
+            if(!self::checkCSV()){
                 self::$errorMsg = 'file is not csv!';
                 return false;
             }
@@ -82,7 +94,7 @@ class EasyCsv
         return true;
     }
 
-    public static function chekCSV(){
+    public static function checkCSV(){
         $extend = pathinfo(self::$fileName);
         if($extend['extension'] == 'csv')
             return true;
@@ -91,6 +103,20 @@ class EasyCsv
 
     public static function getError(){
         return self::$errorMsg;
+    }
+
+    private static function _callUnkey($unKey,$list){
+        try{
+            $listReturn = [];
+            foreach($list as $val){
+                unset($val[$unKey]);
+                $listReturn[] = $val;
+            }
+            return $listReturn;
+        }catch(Exception $e){
+            self::$errorMsg = $e->getMessage();
+            return false;
+        }
     }
 
     public function __destruct(){
